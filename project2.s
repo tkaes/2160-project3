@@ -5,38 +5,51 @@
 .equ __NR_WRITE, 64
 .equ __NR_EXIT, 93
 .equ NEWLINE, 10
+.equ CANARY, 0x534B5254
 
 .text
 main:
-	# main() prolog
-	addi sp, sp, -24
-	sw ra, 20(sp)
+    # main() prolog WITH CANARY
+    addi sp, sp, -28
+    li t0, CANARY               # load canary value
+    sw t0, 24(sp)               # store canary at 24
+    sw ra, 20(sp)
+    
+    # main() body
+    la a0, prompt
+    call puts
+    
+    mv a0, sp
+    call gets
+    
+    mv a0, sp
+    call puts
+    
+    # main() epilog WITH CANARY CHECK
+    lw t0, 24(sp)
+    li t1, CANARY               # load expected canary
+    bne t0, t1, canary_fail     # bne, jump to fail
+    lw ra, 20(sp)               # restore ra
+    addi sp, sp, 28
+    li s1, 8
+    ret
 
-	# main() body
-	la a0, prompt
-	call puts
-
-	mv a0, sp
-	call gets
-
-	mv a0, sp
-	call puts
-
-	# main() epilog
-	lw ra, 20(sp)
-	addi sp, sp, 24
-	ret
+canary_fail:
+    li s1, 7
+    li a0, 0
+    li a7, __NR_EXIT
+    ecall
 
 .space 12288
 
 sekret_fn:
-	addi sp, sp, -4
-	sw ra, 0(sp)
-	la a0, sekret_data
-	call puts
-	lw ra, 0(sp)
-	addi sp, sp, 4
-	ret
+    addi sp, sp, -4
+    sw ra, 0(sp)
+    la a0, sekret_data
+    call puts
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    ret
 
 ##############################################################
 # Add your implementation of puts() and gets() below here
